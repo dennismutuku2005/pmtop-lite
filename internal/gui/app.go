@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -68,41 +69,46 @@ func (pa *PortApp) Run() {
 }
 
 func (pa *PortApp) setupUI() {
-	// Sidebar
-	sidebar := container.NewVBox(
-		widget.NewLabelWithStyle("FILTER", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewSeparator(),
-		widget.NewLabel("Status"),
-		widget.NewSelect([]string{"Active", "Listen", "Established"}, func(s string) {}),
-		widget.NewLabel("Protocol"),
-		widget.NewCheckGroup([]string{"TCP", "UDP"}, func(s []string) {}),
+	// ── Navigation Rail ───────────────────────────────────────────────────────
+	nav := container.NewVBox(
+		widget.NewButtonWithIcon("", theme.HomeIcon(), func() {}),
+		widget.NewButtonWithIcon("", theme.HistoryIcon(), pa.showHistory),
+		widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {}),
 		container.NewSpacer(),
-		widget.NewButtonWithIcon("History", theme.HistoryIcon(), pa.showHistory),
+		widget.NewButtonWithIcon("", theme.HelpIcon(), func() {}),
 	)
-	sidebarScroll := container.NewVScroll(container.NewPadded(sidebar))
-	sidebarScroll.SetMinSize(fyne.NewSize(200, 0))
+	navRail := container.NewPadded(nav)
 
-	// Header Cards
-	totalLabel := widget.NewLabel("0")
-	activeLabel := widget.NewLabel("0")
-	memLabel := widget.NewLabel("0 MB")
+	// ── Dashboard Header ──────────────────────────────────────────────────────
+	title := widget.NewLabelWithStyle("Dashboard", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	title.Alignment = fyne.TextAlignLeading
+	
+	totalLabel := binding.NewString()
+	totalLabel.Set("0")
+	activeLabel := binding.NewString()
+	activeLabel.Set("0")
+	memLabel := binding.NewString()
+	memLabel.Set("0 MB")
 
-	createCard := func(title string, label *widget.Label) fyne.CanvasObject {
+	createCard := func(title, icon string, data binding.String) fyne.CanvasObject {
+		lbl := widget.NewLabelWithData(data)
+		lbl.TextStyle = fyne.TextStyle{Bold: true}
 		return container.NewPadded(container.NewVBox(
-			widget.NewLabelWithStyle(title, fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-			label,
+			widget.NewLabel(title),
+			lbl,
 		))
 	}
 
-	headerCards := container.NewGridWithColumns(3,
-		createCard("TOTAL PORTS", totalLabel),
-		createCard("ACTIVE APPS", activeLabel),
-		createCard("MEM USAGE", memLabel),
+	stats := container.NewGridWithColumns(3,
+		createCard("TOTAL PORTS", "home", totalLabel),
+		createCard("ACTIVE SERVICES", "check", activeLabel),
+		createCard("TOTAL MEMORY", "info", memLabel),
 	)
 
-	// Search and List
+	// ── Search & List ─────────────────────────────────────────────────────────
 	searchEntry := widget.NewEntry()
-	searchEntry.SetPlaceHolder("Search vehicle (process)...")
+	searchEntry.SetPlaceHolder("Search ports or services...")
+	searchEntry.ActionItem = widget.NewIcon(theme.SearchIcon())
 	searchEntry.OnChanged = func(s string) {
 		pa.searchQuery.Set(s)
 		pa.filterPorts()
@@ -111,35 +117,50 @@ func (pa *PortApp) setupUI() {
 	list := widget.NewListWithData(
 		pa.ports,
 		func() fyne.CanvasObject {
+			icon := widget.NewIcon(theme.HelpIcon())
 			name := widget.NewLabelWithStyle("Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 			service := widget.NewLabel("Service")
 			port := widget.NewLabel(":8080")
-			status := widget.NewLabel("Active")
-			status.Importance = widget.HighImportance
-
-			return container.NewGridWithColumns(4, name, service, port, status)
+			
+			killBtn := widget.NewButtonWithIcon("", theme.DeleteIcon(), nil)
+			killBtn.Importance = widget.DangerImportance
+			
+			return container.NewBorder(nil, nil, 
+				container.NewHBox(icon, name), 
+				killBtn,
+				container.NewHBox(service, port),
+			)
 		},
 		func(i binding.DataItem, o fyne.CanvasObject) {
 			val, _ := i.(binding.Untyped).Get()
 			p := val.(scanner.PortEntry)
 
-			grid := o.(*fyne.Container)
-			grid.Objects[0].(*widget.Label).SetText(p.Name)
-			grid.Objects[1].(*widget.Label).SetText(p.Service)
-			grid.Objects[2].(*widget.Label).SetText(fmt.Sprintf(":%d", p.Port))
-			grid.Objects[3].(*widget.Label).SetText(p.State)
+			border := o.(*fyne.Container)
+			leftBox := border.Objects[1].(*fyne.Container)
+			icon := leftBox.Objects[0].(*widget.Icon)
+			name := leftBox.Objects[1].(*widget.Label)
+			
+			centerBox := border.Objects[0].(*fyne.Container)
+			service := centerBox.Objects[0].(*widget.Label)
+			port := centerBox.Objects[1].(*widget.Label)
+			
+			killBtn := border.Objects[2].(*widget.Button)
+
+			icon.SetResource(GetServiceIcon(p.Service))
+			name.SetText(p.Name)
+			service.SetText(p.Service)
+			port.SetText(fmt.Sprintf(":%d", p.Port))
+			
+			killBtn.OnTapped = func() {
+				pa.confirmKill(p)
+			}
 		},
 	)
 
-	list.OnSelected = func(id widget.ListItemID) {
-		val, _ := pa.ports.GetValue(id)
-		pa.showDetail(val.(scanner.PortEntry))
-		list.Unselect(id)
-	}
-
 	mainContent := container.NewBorder(
 		container.NewVBox(
-			container.NewPadded(headerCards),
+			container.NewPadded(title),
+			container.NewPadded(stats),
 			widget.NewSeparator(),
 			container.NewPadded(searchEntry),
 		),
@@ -147,19 +168,40 @@ func (pa *PortApp) setupUI() {
 		container.NewPadded(list),
 	)
 
-	// Final Layout
-	pa.Window.SetContent(container.NewBorder(nil, nil, sidebarScroll, nil, mainContent))
+	// ── Final Layout ──────────────────────────────────────────────────────────
+	pa.Window.SetContent(container.NewBorder(nil, nil, navRail, nil, mainContent))
 
-	// Update stats loop
+	// ── Background Updates ────────────────────────────────────────────────────
 	go func() {
 		for {
-			totalLabel.SetText(fmt.Sprintf("%d", len(pa.allPorts)))
-			// Simple counts for demo
-			activeLabel.SetText(fmt.Sprintf("%d", len(pa.allPorts))) 
+			totalLabel.Set(fmt.Sprintf("%d", len(pa.allPorts)))
+			// Count unique PIDs for active services
+			pids := make(map[int32]bool)
+			for _, p := range pa.allPorts { pids[p.PID] = true }
+			activeLabel.Set(fmt.Sprintf("%d", len(pids)))
+			
 			pa.Window.Content().Refresh()
-			pa.Window.Canvas().Refresh(totalLabel)
+			time.Sleep(2 * time.Second)
 		}
 	}()
+}
+
+func (pa *PortApp) confirmKill(p scanner.PortEntry) {
+	confirm := widget.NewModalPopUp(
+		container.NewVBox(
+			widget.NewLabelWithStyle("Confirm Close", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+			widget.NewLabel(fmt.Sprintf("Are you sure you want to close %s on port %d?", p.Name, p.Port)),
+			container.NewHBox(
+				widget.NewButton("Cancel", func() { pa.Window.Canvas().Overlays().Remove(pa.Window.Canvas().Overlays().Top()) }),
+				widget.NewButtonWithIcon("Close Process", theme.DeleteIcon(), func() {
+					pa.mgr.Kill(p.PID)
+					pa.Window.Canvas().Overlays().Remove(pa.Window.Canvas().Overlays().Top())
+				}),
+			),
+		),
+		pa.Window.Canvas(),
+	)
+	confirm.Show()
 }
 
 func (pa *PortApp) filterPorts() {
@@ -170,7 +212,8 @@ func (pa *PortApp) filterPorts() {
 	for _, p := range pa.allPorts {
 		if query == "" || 
 			strings.Contains(strings.ToLower(p.Name), query) || 
-			strings.Contains(fmt.Sprintf("%d", p.Port), query) {
+			strings.Contains(fmt.Sprintf("%d", p.Port), query) ||
+			strings.Contains(strings.ToLower(p.Service), query) {
 			filtered = append(filtered, p)
 		}
 	}
@@ -178,15 +221,13 @@ func (pa *PortApp) filterPorts() {
 }
 
 func (pa *PortApp) showDetail(p scanner.PortEntry) {
-	d := pa.App.NewWindow(fmt.Sprintf("Vehicle Details: %d", p.Port))
-	d.SetContent(widget.NewLabel(fmt.Sprintf("Details for %s on port %d", p.Name, p.Port)))
-	d.Resize(fyne.NewSize(300, 200))
-	d.Show()
+	// Detail view handled in main list via Quick Actions or Selection
 }
 
 func (pa *PortApp) showHistory() {
 	// ... (history implementation)
 }
+
 
 func (pa *PortApp) parseURL(s string) *url.URL {
 	u, _ := url.Parse(s)
