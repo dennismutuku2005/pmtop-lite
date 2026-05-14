@@ -104,7 +104,9 @@ func (m Model) View() tea.View {
 	// ── System Stats Header ──────────────────────────────────────────────────
 	headerStyle := lipgloss.NewStyle().Foreground(colorText).Background(colorHeader).Padding(0, 1)
 	
+	visible := m.visiblePorts()
 	// Simulated system stats for the dashboard feel
+
 	cpuBar := accentStyle.Render("||||||") + sysPortStyle.Render("||||||||||||||")
 	memBar := accentStyle.Render("||||||||") + sysPortStyle.Render("||||||||||||")
 	
