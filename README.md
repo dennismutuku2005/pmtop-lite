@@ -11,12 +11,13 @@
 To install or update `pmtop` instantly on Windows, run the following command in **PowerShell**:
 
 ```powershell
-$url = "https://raw.githubusercontent.com/dennismutuku2005/pmtop-lite/main/install.ps1"
-Invoke-RestMethod -Uri $url | Out-File -FilePath "$env:TEMP\install.ps1"; & "$env:TEMP\install.ps1"
+irm https://raw.githubusercontent.com/dennismutuku2005/pmtop-lite/main/install.ps1 | iex
 ```
 
-## Features
+> [!IMPORTANT]
+> **Run as Administrator**: To scan all system ports and safely close processes, please run your terminal or the `pmtop-gui` app as an Administrator.
 
+## Features
 
 - **Service & Framework Detection**: Automatically identifies **Node.js**, **Next.js**, **MySQL**, **Oracle**, **Redis**, and more based on port and process behavior.
 - **Modern Dashboard GUI**: A light-themed interface with sidebar filters and overview cards.
@@ -33,13 +34,11 @@ Once installed, you can use `pmtop` in your terminal:
 
 ## Using the Desktop App
 
-Launch `pmtop-gui` from your installation folder or start menu. Use the search bar to find ports, and click on any row to see details or close the process.
+Search for **"pmtop"** in your Windows Start Menu to launch the dashboard. Use the search bar to find ports, and click on any row to see details or close the process.
 
-## System Requirements
+## Bugs & Support
 
-- **Windows**: Windows 10 or 11 recommended.
-- **Permissions**: Requires administrative privileges to close processes and scan all ports.
-- **Display**: Supports High-DPI monitors and both Light/Dark modes.
+If you find a bug or have a feature request, please [create an issue](https://github.com/dennismutuku2005/pmtop-lite/issues) on GitHub.
 
 ---
-© 2026 pmtop Team. Clean, Modern.
+© 2026 pmtop Team.
