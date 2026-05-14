@@ -6,7 +6,17 @@
 
 `pmtop` is a tool designed to help you monitor and manage network ports on your system. Unlike traditional tools, `pmtop` shows you exactly which apps and project directories are using your ports, making it easy to identify and close unwanted processes.
 
+## Installation
+
+To install or update `pmtop` instantly on Windows, run the following command in **PowerShell**:
+
+```powershell
+$url = "https://raw.githubusercontent.com/dennismutuku2005/pmtop-lite/main/install.ps1"
+Invoke-RestMethod -Uri $url | Out-File -FilePath "$env:TEMP\install.ps1"; & "$env:TEMP\install.ps1"
+```
+
 ## Features
+
 
 - **Service & Framework Detection**: Automatically identifies **Node.js**, **Next.js**, **MySQL**, **Oracle**, **Redis**, and more based on port and process behavior.
 - **Modern Dashboard GUI**: A light-themed interface with sidebar filters and overview cards.
