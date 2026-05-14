@@ -18,8 +18,10 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/dennismutuku2005/pmtop-lite/pkg/scanner"
+	"github.com/dennismutuku2005/pmtop-lite/pkg/services"
 	"github.com/dennismutuku2005/pmtop-lite/pkg/state"
 )
+
 
 type PortApp struct {
 	App    fyne.App
@@ -31,6 +33,7 @@ type PortApp struct {
 	ports       binding.UntypedList
 	searchQuery binding.String
 	showAll     binding.Bool
+	filterDev   bool
 
 	allPorts []scanner.PortEntry
 }
@@ -48,11 +51,13 @@ func NewPortApp() *PortApp {
 		ports:       binding.NewUntypedList(),
 		searchQuery: binding.NewString(),
 		showAll:     binding.NewBool(),
+		filterDev:   true, // Clean view by default
 	}
 
 	pa.mgr = state.New(false)
 	return pa
 }
+
 
 func (pa *PortApp) Run() {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -100,10 +105,18 @@ func (pa *PortApp) buildDashboard() fyne.CanvasObject {
 		)
 	}
 
-	stats := container.NewGridWithColumns(2,
+	devToggle := widget.NewCheck("Dev Mode Only", func(b bool) {
+		pa.filterDev = b
+		pa.filterPorts()
+	})
+	devToggle.Checked = true
+
+	stats := container.NewGridWithColumns(3,
 		createStat("TOTAL PORTS", totalLabel, theme.Color(theme.ColorNamePrimary, theme.VariantLight)),
 		createStat("ACTIVE SERVICES", activeLabel, theme.Color(theme.ColorNameSuccess, theme.VariantLight)),
+		container.NewCenter(devToggle),
 	)
+
 
 	// ── Port List ─────────────────────────────────────────────────────────────
 	list := widget.NewListWithData(
@@ -219,6 +232,11 @@ func (pa *PortApp) filterPorts() {
 
 	filtered := make([]interface{}, 0)
 	for _, p := range pa.allPorts {
+		// Apply Developer Filter
+		if pa.filterDev && !services.IsDev(p.Port, p.Service, p.Name) {
+			continue
+		}
+
 		if query == "" || 
 			strings.Contains(strings.ToLower(p.Name), query) || 
 			strings.Contains(fmt.Sprintf("%d", p.Port), query) ||
@@ -228,6 +246,7 @@ func (pa *PortApp) filterPorts() {
 	}
 	pa.ports.Set(filtered)
 }
+
 
 func (pa *PortApp) showDetail(p scanner.PortEntry) {
 	// Detail view handled in main list via Quick Actions or Selection

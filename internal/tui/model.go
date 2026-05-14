@@ -204,9 +204,10 @@ func (m Model) visiblePorts() []scanner.PortEntry {
 	filter := strings.ToLower(m.filter)
 
 	for _, p := range m.ports {
-		if m.filterDev && !services.IsDev(p.Port, p.Service) {
+		if m.filterDev && !services.IsDev(p.Port, p.Service, p.Name) {
 			continue
 		}
+
 		if filter != "" {
 			portStr := fmt.Sprintf(":%d", p.Port)
 			if !strings.Contains(strings.ToLower(p.Name), filter) &&
