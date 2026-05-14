@@ -14,7 +14,18 @@ var portMap = map[int]string{
 // Detect identifies a service based on port and process name.
 func Detect(port int, processName string) string {
 	processName = strings.ToLower(processName)
+	
+	// High-Priority Port-Based Labels for known dev environments
+	if port == 3000 || port == 3001 {
+		if strings.Contains(processName, "node") || strings.Contains(processName, "next") || strings.Contains(processName, "npm") {
+			return "Next.js/React"
+		}
+	}
+
+	// Keyword detection
 	if strings.Contains(processName, "node") { return "Node.js" }
+	if strings.Contains(processName, "next") { return "Next.js" }
+	if strings.Contains(processName, "npm") { return "npm/Node" }
 	if strings.Contains(processName, "mysql") { return "MySQL" }
 	if strings.Contains(processName, "postgres") { return "PostgreSQL" }
 	if strings.Contains(processName, "oracle") || strings.Contains(processName, "tnslsnr") { return "Oracle" }
@@ -27,6 +38,7 @@ func Detect(port int, processName string) string {
 	}
 	return "Unknown"
 }
+
 
 // IsDev returns true if the port/process belongs to a developer tool.
 func IsDev(port int, service string, processName string) bool {
