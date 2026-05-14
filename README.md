@@ -4,37 +4,43 @@
   <b>pmtop</b>
 </p>
 
-`pmtop` is a tool designed to help you monitor and manage network ports on your system. Unlike traditional tools, `pmtop` shows you exactly which apps and project directories are using your ports, making it easy to identify and close unwanted processes.
-
 ## Installation
 
-To install or update `pmtop` instantly on Windows, run the following command in **PowerShell**:
+To install or update the full `pmtop` suite (CLI + GUI), run this command in **PowerShell**:
 
 ```powershell
 irm https://raw.githubusercontent.com/dennismutuku2005/pmtop-lite/main/install.ps1 | iex
 ```
 
-> [!IMPORTANT]
-> **Run as Administrator**: To scan all system ports and safely close processes, please run your terminal or the `pmtop-gui` app as an Administrator.
+> [!TIP]
+> The installer now automatically detects running versions of pmtop and safely closes them to perform a clean update. No manual cleanup needed!
 
-## Features
+## The Developer Intelligence Engine
 
-- **Service & Framework Detection**: Automatically identifies **Node.js**, **Next.js**, **MySQL**, **Oracle**, **Redis**, and more based on port and process behavior.
-- **Modern Dashboard GUI**: A light-themed interface with sidebar filters and overview cards.
-- **Port Activity Logger**: Track every open, close, and process change on any port in real-time.
+`pmtop` is built for developers. It doesn't just show ports; it understands your stack:
 
-## Using the Terminal
+- **Auto-Detection**: Instantly recognizes **Oracle**, **Java/Tomcat**, **MySQL**, **Node.js**, **Python**, **PHP**, and **Go**.
+- **Noise Suppression**: By default, it silences "Non-Dev" traffic. No more clutter from **Chrome**, **Slack**, **Discord**, or **OneDrive**.
+- **Dev Mode Toggle**: Switch between a laser-focused "Clean View" and a full "System View" with one click (GUI) or by pressing `a` (CLI).
 
-Once installed, you can use `pmtop` in your terminal:
+## Modern Interfaces
 
-- **`pmtop`**: Launches the interactive dashboard.
-- **`pmtop close <port>`**: Safely closes the process using a specific port (e.g., `pmtop close 3000`).
-- **`pmtop log <port>`**: Starts a real-time activity logger for a specific port.
-- **`pmtop --all`**: Shows all active connections, including established ones.
+### 🎨 Material Desktop GUI
+A premium desktop experience built for high productivity:
+- **Tabbed Layout**: Dedicated **Dashboard** and **Settings** pages.
+- **Status Indicators**: Live **● Green/Orange** dots show service health at a glance.
+- **Performance tracking**: Real-time memory usage and uptime for every service.
 
-## Using the Desktop App
+### ⌨️ Redesigned CLI Dashboard
+A high-performance terminal UI for the command-line power user:
+- **System Header**: Real-time CPU and Memory bars (HTOP-style) right in your terminal.
+- **Enhanced Visibility**: Clean, responsive table layout with colored status indicators.
 
-Search for **"pmtop"** in your Windows Start Menu to launch the dashboard. Use the search bar to find ports, and click on any row to see details or close the process.
+## Usage
+
+- **`pmtop`**: Launch the terminal dashboard.
+- **`pmtop-gui`**: Search "pmtop" in your Start Menu for the desktop experience.
+- **Admin Rights**: For full detection (including MySQL/Apache on Windows), please run as **Administrator**.
 
 ## Bugs & Support
 
