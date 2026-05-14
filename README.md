@@ -1,11 +1,15 @@
-# <img src="public/pmtop.png" width="200" align="center"> pmtop — Advanced Port & Process Manager
+<p align="center">
+  <img src="public/pmtop.png" width="400" alt="pmtop logo">
+  <br>
+  <b>pmtop</b>
+</p>
 
-`pmtop` is a powerful tool designed to help you monitor and manage network ports on your system. Unlike traditional tools, `pmtop` shows you exactly which apps and project directories are using your ports, making it easy to identify and close unwanted processes.
+`pmtop` is a tool designed to help you monitor and manage network ports on your system. Unlike traditional tools, `pmtop` shows you exactly which apps and project directories are using your ports, making it easy to identify and close unwanted processes.
 
 ## Features
 
 - **Service & Framework Detection**: Automatically identifies **Node.js**, **Next.js**, **MySQL**, **Oracle**, **Redis**, and more based on port and process behavior.
-- **Modern Dashboard GUI**: A premium, light-themed interface with sidebar filters and overview cards.
+- **Modern Dashboard GUI**: A light-themed interface with sidebar filters and overview cards.
 - **Port Activity Logger**: Track every open, close, and process change on any port in real-time.
 
 ## Using the Terminal
@@ -28,4 +32,4 @@ Launch `pmtop-gui` from your installation folder or start menu. Use the search b
 - **Display**: Supports High-DPI monitors and both Light/Dark modes.
 
 ---
-© 2026 pmtop Team. Clean, Modern, Powerful.
+© 2026 pmtop Team. Clean, Modern.
