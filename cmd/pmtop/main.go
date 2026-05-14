@@ -196,10 +196,6 @@ func closePort(portStr string) {
 	}
 }
 
-func watchPort(portStr string) {
-	fmt.Printf("Listening for activity on port %s... (Ctrl+C to stop)\n", portStr)
-	// ... (actual logging logic would go here or call into pkg/logger)
-}
 
 func printHelp() {
 	fmt.Printf(`
