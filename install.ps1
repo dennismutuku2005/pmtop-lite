@@ -8,20 +8,29 @@ if (!(Test-Path $installDir)) {
 
 Write-Host "Fetching latest pmtop Suite (CLI + GUI)..." -ForegroundColor Cyan
 $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest"
-$asset = $release.assets | Where-Object { $_.name -like "*windows_amd64.zip" } | Select-Object -First 1
 
-if (!$asset) {
-    Write-Host "Could not find a Windows release package." -ForegroundColor Red
+$cliAsset = $release.assets | Where-Object { $_.name -like "pmtop-cli*windows_amd64.zip" } | Select-Object -First 1
+$guiAsset = $release.assets | Where-Object { $_.name -like "pmtop-gui*windows_amd64.zip" } | Select-Object -First 1
+
+if (!$cliAsset -or !$guiAsset) {
+    Write-Host "Could not find all required Windows release packages." -ForegroundColor Red
     exit 1
 }
 
-$tempZip = Join-Path $env:TEMP "pmtop_suite.zip"
-Write-Host "Downloading $($asset.name)..." -ForegroundColor Cyan
-Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $tempZip
+# Install CLI
+$tempCli = Join-Path $env:TEMP "pmtop_cli.zip"
+Write-Host "Downloading CLI ($($cliAsset.name))..." -ForegroundColor Cyan
+Invoke-WebRequest -Uri $cliAsset.browser_download_url -OutFile $tempCli
+Expand-Archive -Path $tempCli -DestinationPath $installDir -Force
+Remove-Item $tempCli
 
-Write-Host "Installing to $installDir..." -ForegroundColor Cyan
-Expand-Archive -Path $tempZip -DestinationPath $installDir -Force
-Remove-Item $tempZip
+# Install GUI
+$tempGui = Join-Path $env:TEMP "pmtop_gui.zip"
+Write-Host "Downloading GUI ($($guiAsset.name))..." -ForegroundColor Cyan
+Invoke-WebRequest -Uri $guiAsset.browser_download_url -OutFile $tempGui
+Expand-Archive -Path $tempGui -DestinationPath $installDir -Force
+Remove-Item $tempGui
+
 
 # Create Start Menu Shortcut for the GUI
 Write-Host "Registering pmtop as a Windows App..." -ForegroundColor Green
