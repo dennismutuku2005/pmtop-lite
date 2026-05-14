@@ -91,9 +91,11 @@ func (m *Manager) scan() {
 
 	for _, e := range raw {
 		// Skip invalid ports and the System Idle Process (PID 0)
-		if e.Port <= 0 || e.Port > 65535 || e.PID == 0 {
+		// NOTE: PID 4 is 'System' and often handles Port 80/443 on Windows.
+		if e.Port <= 0 || e.Port > 65535 || (e.PID == 0 && !services.IsDev(e.Port, "")) {
 			continue
 		}
+
 
 		k := portKey{e.Port, e.Protocol}
 

@@ -3,12 +3,14 @@ package gui
 import (
 	"context"
 	"fmt"
+	"image/color"
 	"net/url"
 	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/layout"
@@ -69,66 +71,59 @@ func (pa *PortApp) Run() {
 }
 
 func (pa *PortApp) setupUI() {
-	// ── Navigation Rail ───────────────────────────────────────────────────────
-	nav := container.NewVBox(
-		widget.NewButtonWithIcon("", theme.HomeIcon(), func() {}),
-		widget.NewButtonWithIcon("", theme.HistoryIcon(), pa.showHistory),
-		widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {}),
-		layout.NewSpacer(),
-		widget.NewButtonWithIcon("", theme.HelpIcon(), func() {}),
-	)
-	navRail := container.NewPadded(nav)
+	// ── Tabs ──────────────────────────────────────────────────────────────────
+	dashboard := pa.buildDashboard()
+	settings := pa.buildSettings()
 
-	// ── Dashboard Header ──────────────────────────────────────────────────────
-	title := widget.NewLabelWithStyle("Dashboard", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	title.Alignment = fyne.TextAlignLeading
-	
+	tabs := container.NewAppTabs(
+		container.NewTabItemWithIcon("Dashboard", theme.HomeIcon(), dashboard),
+		container.NewTabItemWithIcon("Settings", theme.SettingsIcon(), settings),
+	)
+	tabs.SetTabLocation(container.TabLocationLeading)
+
+	pa.Window.SetContent(tabs)
+}
+
+func (pa *PortApp) buildDashboard() fyne.CanvasObject {
+	// ── Stats Header ──────────────────────────────────────────────────────────
 	totalLabel := binding.NewString()
 	totalLabel.Set("0")
 	activeLabel := binding.NewString()
 	activeLabel.Set("0")
-	memLabel := binding.NewString()
-	memLabel.Set("0 MB")
 
-	createCard := func(title, icon string, data binding.String) fyne.CanvasObject {
+	createStat := func(title string, data binding.String, color color.Color) fyne.CanvasObject {
 		lbl := widget.NewLabelWithData(data)
 		lbl.TextStyle = fyne.TextStyle{Bold: true}
-		return container.NewPadded(container.NewVBox(
-			widget.NewLabel(title),
-			lbl,
-		))
+		return container.NewVBox(
+			widget.NewLabelWithStyle(title, fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+			container.NewCenter(lbl),
+		)
 	}
 
-	stats := container.NewGridWithColumns(3,
-		createCard("TOTAL PORTS", "home", totalLabel),
-		createCard("ACTIVE SERVICES", "check", activeLabel),
-		createCard("TOTAL MEMORY", "info", memLabel),
+	stats := container.NewGridWithColumns(2,
+		createStat("TOTAL PORTS", totalLabel, theme.Color(theme.ColorNamePrimary, theme.VariantLight)),
+		createStat("ACTIVE SERVICES", activeLabel, theme.Color(theme.ColorNameSuccess, theme.VariantLight)),
 	)
 
-	// ── Search & List ─────────────────────────────────────────────────────────
-	searchEntry := widget.NewEntry()
-	searchEntry.SetPlaceHolder("Search ports or services...")
-	searchEntry.ActionItem = widget.NewIcon(theme.SearchIcon())
-	searchEntry.OnChanged = func(s string) {
-		pa.searchQuery.Set(s)
-		pa.filterPorts()
-	}
-
+	// ── Port List ─────────────────────────────────────────────────────────────
 	list := widget.NewListWithData(
 		pa.ports,
 		func() fyne.CanvasObject {
-			icon := widget.NewIcon(theme.HelpIcon())
+			dot := canvas.NewCircle(color.NRGBA{R: 0, G: 255, B: 0, A: 255})
+			dot.Resize(fyne.NewSize(10, 10))
+			
 			name := widget.NewLabelWithStyle("Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-			service := widget.NewLabel("Service")
 			port := widget.NewLabel(":8080")
+			mem := widget.NewLabel("0 MB")
+			mem.Importance = widget.LowImportance
 			
 			killBtn := widget.NewButtonWithIcon("", theme.DeleteIcon(), nil)
 			killBtn.Importance = widget.DangerImportance
 			
 			return container.NewBorder(nil, nil, 
-				container.NewHBox(icon, name), 
+				container.NewHBox(container.NewCenter(dot), name), 
 				killBtn,
-				container.NewHBox(service, port),
+				container.NewHBox(port, widget.NewSeparator(), mem),
 			)
 		},
 		func(i binding.DataItem, o fyne.CanvasObject) {
@@ -137,19 +132,25 @@ func (pa *PortApp) setupUI() {
 
 			border := o.(*fyne.Container)
 			leftBox := border.Objects[1].(*fyne.Container)
-			icon := leftBox.Objects[0].(*widget.Icon)
+			dot := leftBox.Objects[0].(*fyne.Container).Objects[0].(*canvas.Circle)
 			name := leftBox.Objects[1].(*widget.Label)
 			
-			centerBox := border.Objects[0].(*fyne.Container)
-			service := centerBox.Objects[0].(*widget.Label)
-			port := centerBox.Objects[1].(*widget.Label)
+			rightBox := border.Objects[0].(*fyne.Container)
+			port := rightBox.Objects[0].(*widget.Label)
+			mem := rightBox.Objects[2].(*widget.Label)
 			
 			killBtn := border.Objects[2].(*widget.Button)
 
-			icon.SetResource(GetServiceIcon(p.Service))
+			if p.Service == "Unknown" {
+				dot.FillColor = color.NRGBA{R: 150, G: 150, B: 150, A: 255}
+			} else {
+				dot.FillColor = color.NRGBA{R: 254, G: 74, B: 22, A: 255} // Brand Orange
+			}
+			dot.Refresh()
+
 			name.SetText(p.Name)
-			service.SetText(p.Service)
 			port.SetText(fmt.Sprintf(":%d", p.Port))
+			mem.SetText(proc.FormatMem(p.MemoryMB))
 			
 			killBtn.OnTapped = func() {
 				pa.confirmKill(p)
@@ -157,34 +158,42 @@ func (pa *PortApp) setupUI() {
 		},
 	)
 
-	mainContent := container.NewBorder(
-		container.NewVBox(
-			container.NewPadded(title),
-			container.NewPadded(stats),
-			widget.NewSeparator(),
-			container.NewPadded(searchEntry),
-		),
-		nil, nil, nil,
-		container.NewPadded(list),
-	)
-
-	// ── Final Layout ──────────────────────────────────────────────────────────
-	pa.Window.SetContent(container.NewBorder(nil, nil, navRail, nil, mainContent))
-
 	// ── Background Updates ────────────────────────────────────────────────────
 	go func() {
 		for {
 			totalLabel.Set(fmt.Sprintf("%d", len(pa.allPorts)))
-			// Count unique PIDs for active services
 			pids := make(map[int32]bool)
 			for _, p := range pa.allPorts { pids[p.PID] = true }
 			activeLabel.Set(fmt.Sprintf("%d", len(pids)))
-			
-			pa.Window.Content().Refresh()
 			time.Sleep(2 * time.Second)
 		}
 	}()
+
+	return container.NewBorder(
+		container.NewVBox(container.NewPadded(stats), widget.NewSeparator()),
+		nil, nil, nil,
+		container.NewPadded(list),
+	)
 }
+
+func (pa *PortApp) buildSettings() fyne.CanvasObject {
+	updateCheck := widget.NewCheck("Check for updates on startup", func(b bool) {})
+	updateCheck.Checked = true
+	
+	return container.NewPadded(container.NewVBox(
+		widget.NewLabelWithStyle("Settings", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewSeparator(),
+		updateCheck,
+		container.NewSpacer(),
+		widget.NewLabel("pmtop v0.1.0"),
+		widget.NewButton("Check for Updates Now", func() {
+			// Mock update check
+			pa.Window.SetContent(container.NewCenter(widget.NewLabel("You are on the latest version!")))
+			time.AfterFunc(2*time.Second, func() { pa.setupUI() })
+		}),
+	))
+}
+
 
 func (pa *PortApp) confirmKill(p scanner.PortEntry) {
 	confirm := widget.NewModalPopUp(

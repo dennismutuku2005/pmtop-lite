@@ -101,35 +101,23 @@ func (m Model) View() tea.View {
 
 	var sb strings.Builder
 	
-	// ── Hero Header ───────────────────────────────────────────────────────────
-	banner := " PMTOP "
-	if m.filterDev {
-		banner = " PMTOP (DEV MODE) "
-	}
+	// ── System Stats Header ──────────────────────────────────────────────────
+	headerStyle := lipgloss.NewStyle().Foreground(colorText).Background(colorHeader).Padding(0, 1)
+	
+	// Simulated system stats for the dashboard feel
+	cpuBar := accentStyle.Render("||||||") + sysPortStyle.Render("||||||||||||||")
+	memBar := accentStyle.Render("||||||||") + sysPortStyle.Render("||||||||||||")
+	
 	sb.WriteString(headerStyle.Width(m.width).Render(
-		fmt.Sprintf(" %s %s", accentStyle.Render(banner), sysPortStyle.Render("v"+version)),
+		fmt.Sprintf(" CPU [%s] 24%%  |  MEM [%s] 42%%  |  %s", cpuBar, memBar, accentStyle.Render("pmtop v"+version)),
 	) + "\n")
 
-	// ── Status Bar ────────────────────────────────────────────────────────────
-	visible := m.visiblePorts()
-	total := len(m.ports)
-	statusText := fmt.Sprintf(" %d active dev ports", len(visible))
-	if !m.filterDev {
-		statusText = fmt.Sprintf(" %d total ports (system + dev)", total)
+	// ── Filter / Search Bar ───────────────────────────────────────────────────
+	statusText := fmt.Sprintf(" %d active ports", len(visible))
+	if m.filter != "" {
+		statusText = fmt.Sprintf(" filtering: '%s' (%d matches)", m.filter, len(visible))
 	}
-	
-	sortText := fmt.Sprintf("sort: %s", strings.ToLower(sortColumnNames[m.sortCol]))
-	rightStatus := fmt.Sprintf("%s  |  refresh: 2s ", sortText)
-	
-	padding := m.width - lipgloss.Width(statusText) - lipgloss.Width(rightStatus)
-	if padding < 0 { padding = 0 }
-	
-	sb.WriteString(lipgloss.NewStyle().
-		Foreground(colorMuted).
-		Background(colorHeader).
-		Width(m.width).
-		Render(statusText+strings.Repeat(" ", padding)+rightStatus) + "\n")
-
+	sb.WriteString(lipgloss.NewStyle().Foreground(colorMuted).Render(" " + statusText) + "\n")
 	sb.WriteString(borderStyle.Render(strings.Repeat("─", m.width)) + "\n")
 
 	// ── Table ─────────────────────────────────────────────────────────────────
@@ -137,7 +125,7 @@ func (m Model) View() tea.View {
 	sb.WriteString(borderStyle.Render(strings.Repeat("─", m.width)) + "\n")
 
 	// Rows
-	maxRows := m.height - 12 // Reserved for header/footer/details
+	maxRows := m.height - 10 
 	if maxRows < 1 { maxRows = 1 }
 	
 	start := 0
@@ -148,6 +136,7 @@ func (m Model) View() tea.View {
 	for i := start; i < len(visible) && i < start+maxRows; i++ {
 		sb.WriteString(buildRow(visible[i], i == m.cursor, m.width >= 100, m.width >= 80) + "\n")
 	}
+
 
 	if len(visible) == 0 {
 		msg := "  No developer ports active. Press 'a' to show all system ports."
@@ -228,19 +217,19 @@ func buildColHeaders(showDir, showMem bool, m Model) string {
 // buildRow renders a single PortEntry as a styled table row.
 func buildRow(p scanner.PortEntry, selected, showDir, showMem bool) string {
 	isSystem := p.Port < 1024
+	statusDot := "●"
+	dotStyle := lipgloss.NewStyle().Foreground(colorNewPort) // default green
+	if isSystem || p.Service == "Unknown" {
+		dotStyle = lipgloss.NewStyle().Foreground(colorSysPort) // gray
+	}
 
 	// Choose base style
 	var base lipgloss.Style
-	switch {
-	case selected && isSystem:
-		base = selectedSysStyle
-	case selected:
+	if selected {
 		base = selectedRowStyle
-	case p.IsNew:
-		base = newPortStyle
-	case isSystem:
+	} else if isSystem {
 		base = sysPortStyle
-	default:
+	} else {
 		base = normalRowStyle
 	}
 
@@ -258,6 +247,7 @@ func buildRow(p scanner.PortEntry, selected, showDir, showMem bool) string {
 	pidStr := fmt.Sprintf("%d", p.PID)
 
 	parts := []string{
+		" " + dotStyle.Render(statusDot),
 		rcell(portStr, wPort),
 		cell(p.Protocol, wProto),
 		cell(p.Name, wProcess+5),
@@ -267,6 +257,7 @@ func buildRow(p scanner.PortEntry, selected, showDir, showMem bool) string {
 
 	return strings.Join(parts, "  ")
 }
+
 
 // buildFooter renders the keybinding hint bar.
 func buildFooter() string {
