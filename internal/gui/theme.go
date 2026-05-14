@@ -19,7 +19,7 @@ func (t *ModernLightTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) col
 		case theme.ColorNameInputBackground:
 			return color.NRGBA{R: 0x1e, G: 0x29, B: 0x3b, A: 0xff} // Slate-800
 		case theme.ColorNamePrimary:
-			return color.NRGBA{R: 0x63, G: 0x66, B: 0xf1, A: 0xff} // Indigo-500
+			return color.NRGBA{R: 0xfe, G: 0x4a, B: 0x16, A: 0xff} // Brand Orange #fe4a16
 		case theme.ColorNameForeground:
 			return color.NRGBA{R: 0xf8, G: 0xfa, B: 0xfc, A: 0xff} // Slate-50
 		}
@@ -31,7 +31,7 @@ func (t *ModernLightTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) col
 	case theme.ColorNameInputBackground:
 		return color.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff} // White
 	case theme.ColorNamePrimary:
-		return color.NRGBA{R: 0x4f, G: 0x46, B: 0xe5, A: 0xff} // Indigo-600
+		return color.NRGBA{R: 0xfe, G: 0x4a, B: 0x16, A: 0xff} // Brand Orange #fe4a16
 	case theme.ColorNameForeground:
 		return color.NRGBA{R: 0x0f, G: 0x17, B: 0x2a, A: 0xff} // Slate-900
 	case theme.ColorNameScrollBar:

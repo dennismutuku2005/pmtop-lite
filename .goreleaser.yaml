@@ -2,7 +2,8 @@
 project_name: pmtop
 
 builds:
-  - env:
+  - id: pmtop-cli
+    env:
       - CGO_ENABLED=0
     goos:
       - windows
@@ -15,6 +16,19 @@ builds:
     binary: pmtop
     ldflags:
       - -s -w -X main.version={{.Version}}
+
+  - id: pmtop-gui
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - windows
+    goarch:
+      - amd64
+    main: ./cmd/pmtop-gui
+    binary: pmtop-gui
+    ldflags:
+      - -s -w -H=windowsgui
+
 
 archives:
   - format: tar.gz

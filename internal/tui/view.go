@@ -13,7 +13,7 @@ import (
 
 // ── Colour palette ────────────────────────────────────────────────────────────
 var (
-	colorPrimary  = lipgloss.Color("#7C3AED") // violet
+	colorPrimary  = lipgloss.Color("#fe4a16") // brand orange
 	colorAccent   = lipgloss.Color("#06B6D4") // cyan
 	colorSelected = lipgloss.Color("#1E1B4B") // deep indigo bg
 	colorNewPort  = lipgloss.Color("#10B981") // emerald
