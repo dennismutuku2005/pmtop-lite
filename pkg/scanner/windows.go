@@ -68,27 +68,41 @@ func (s *WindowsScanner) Scan() ([]PortEntry, error) {
 	return append(tcp, udp...), nil
 }
 
-// scanTCP calls GetExtendedTcpTable with the given tableClass.
+// scanTCP calls GetExtendedTcpTable for both IPv4 and IPv6.
 func scanTCP(tableClass uint32) ([]PortEntry, error) {
+	const afINET = 2
+	const afINET6 = 23
+
+	v4, err := scanTCPVersion(afINET, tableClass)
+	if err != nil {
+		return nil, err
+	}
+	v6, _ := scanTCPVersion(afINET6, tableClass) // IPv6 might not be supported/active, non-fatal
+	return append(v4, v6...), nil
+}
+
+func scanTCPVersion(family uint32, tableClass uint32) ([]PortEntry, error) {
 	var size uint32
-	getExtendedTcpTable.Call(0, uintptr(unsafe.Pointer(&size)), 1, afINET, uintptr(tableClass), 0)
+	getExtendedTcpTable.Call(0, uintptr(unsafe.Pointer(&size)), 1, uintptr(family), uintptr(tableClass), 0)
 	if size == 0 {
-		size = 4096
+		return nil, nil
 	}
 
 	buf := make([]byte, size)
 	ret, _, _ := getExtendedTcpTable.Call(
 		uintptr(unsafe.Pointer(&buf[0])),
 		uintptr(unsafe.Pointer(&size)),
-		1, afINET, uintptr(tableClass), 0,
+		1, uintptr(family), uintptr(tableClass), 0,
 	)
 	if ret != 0 {
-		return nil, fmt.Errorf("GetExtendedTcpTable returned %d", ret)
+		return nil, fmt.Errorf("GetExtendedTcpTable family %d returned %d", family, ret)
 	}
 
-	// MIB_TCPTABLE_OWNER_PID: DWORD numEntries, then N rows of 24 bytes each
 	numEntries := *(*uint32)(unsafe.Pointer(&buf[0]))
-	const rowSize = 24
+	rowSize := 24
+	if family == 23 { // AF_INET6
+		rowSize = 56
+	}
 	offset := 4
 
 	entries := make([]PortEntry, 0, numEntries)
@@ -97,9 +111,21 @@ func scanTCP(tableClass uint32) ([]PortEntry, error) {
 			break
 		}
 		row := buf[offset : offset+rowSize]
-		state := *(*uint32)(unsafe.Pointer(&row[0]))
-		rawPort := *(*uint32)(unsafe.Pointer(&row[8]))
-		pid := *(*uint32)(unsafe.Pointer(&row[20]))
+		
+		var rawPort uint32
+		var pid uint32
+		var state uint32
+
+		if family == 23 { // AF_INET6
+			// MIB_TCP6ROW_OWNER_PID: LocalAddr (16), LocalScopeId (4), LocalPort (4), ...
+			rawPort = *(*uint32)(unsafe.Pointer(&row[20]))
+			state = *(*uint32)(unsafe.Pointer(&row[48]))
+			pid = *(*uint32)(unsafe.Pointer(&row[52]))
+		} else {
+			state = *(*uint32)(unsafe.Pointer(&row[0]))
+			rawPort = *(*uint32)(unsafe.Pointer(&row[8]))
+			pid = *(*uint32)(unsafe.Pointer(&row[20]))
+		}
 
 		stateName := tcpStates[state]
 		if stateName == "" {
@@ -115,6 +141,7 @@ func scanTCP(tableClass uint32) ([]PortEntry, error) {
 	}
 	return entries, nil
 }
+
 
 // scanUDP calls GetExtendedUdpTable and parses MIB_UDPTABLE_OWNER_PID.
 func scanUDP() ([]PortEntry, error) {
