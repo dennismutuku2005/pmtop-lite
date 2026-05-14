@@ -6,6 +6,14 @@ if (!(Test-Path $installDir)) {
     New-Item -ItemType Directory -Path $installDir -Force | Out-Null
 }
 
+# Stop any running instances to avoid "File in Use" errors
+$runningProcs = Get-Process -Name "pmtop", "pmtop-gui" -ErrorAction SilentlyContinue
+if ($runningProcs) {
+    Write-Host "Closing running instances of pmtop to prepare for update..." -ForegroundColor Yellow
+    $runningProcs | Stop-Process -Force
+    Start-Sleep -Seconds 1
+}
+
 Write-Host "Fetching latest pmtop Suite (CLI + GUI)..." -ForegroundColor Cyan
 $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest"
 
@@ -15,6 +23,13 @@ $guiAsset = $release.assets | Where-Object { $_.name -like "pmtop-gui*windows_am
 if (!$cliAsset -or !$guiAsset) {
     Write-Host "Could not find all required Windows release packages." -ForegroundColor Red
     exit 1
+}
+
+Write-Host "Cleaning old installation..." -ForegroundColor Cyan
+if (Test-Path $installDir) {
+    Remove-Item (Join-Path $installDir "*") -Force -Recurse -ErrorAction SilentlyContinue
+} else {
+    New-Item -ItemType Directory -Path $installDir -Force | Out-Null
 }
 
 # Install CLI
@@ -30,6 +45,7 @@ Write-Host "Downloading GUI ($($guiAsset.name))..." -ForegroundColor Cyan
 Invoke-WebRequest -Uri $guiAsset.browser_download_url -OutFile $tempGui
 Expand-Archive -Path $tempGui -DestinationPath $installDir -Force
 Remove-Item $tempGui
+
 
 
 # Create Start Menu Shortcut for the GUI
