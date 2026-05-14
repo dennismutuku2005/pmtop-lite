@@ -17,7 +17,10 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+
+	"github.com/dennismutuku2005/pmtop-lite/pkg/proc"
 	"github.com/dennismutuku2005/pmtop-lite/pkg/scanner"
+
 	"github.com/dennismutuku2005/pmtop-lite/pkg/services"
 	"github.com/dennismutuku2005/pmtop-lite/pkg/state"
 )
@@ -112,8 +115,8 @@ func (pa *PortApp) buildDashboard() fyne.CanvasObject {
 	devToggle.Checked = true
 
 	stats := container.NewGridWithColumns(3,
-		createStat("TOTAL PORTS", totalLabel, theme.Color(theme.ColorNamePrimary, theme.VariantLight)),
-		createStat("ACTIVE SERVICES", activeLabel, theme.Color(theme.ColorNameSuccess, theme.VariantLight)),
+		createStat("TOTAL PORTS", totalLabel, theme.Color(theme.ColorNamePrimary)),
+		createStat("ACTIVE SERVICES", activeLabel, theme.Color(theme.ColorNameSuccess)),
 		container.NewCenter(devToggle),
 	)
 
@@ -197,7 +200,7 @@ func (pa *PortApp) buildSettings() fyne.CanvasObject {
 		widget.NewLabelWithStyle("Settings", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewSeparator(),
 		updateCheck,
-		container.NewSpacer(),
+		layout.NewSpacer(),
 		widget.NewLabel("pmtop v0.1.0"),
 		widget.NewButton("Check for Updates Now", func() {
 			// Mock update check
