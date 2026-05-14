@@ -14,53 +14,76 @@ import (
 	"github.com/dennismutuku2005/pmtop-lite/internal/tui"
 	"github.com/dennismutuku2005/pmtop-lite/pkg/proc"
 	"github.com/dennismutuku2005/pmtop-lite/pkg/scanner"
+	"github.com/dennismutuku2005/pmtop-lite/pkg/services"
 )
+
 
 const version = "0.1.0"
 
 func main() {
-	showAll := false
-	for _, arg := range os.Args[1:] {
-		if arg == "--all" || arg == "-a" {
-			showAll = true
-			break
-		}
+	if len(os.Args) == 1 {
+
+		printHelp()
+		os.Exit(0)
 	}
 
-	if len(os.Args) > 1 {
-		switch os.Args[1] {
-		case "close":
-			if len(os.Args) < 3 {
-				fmt.Println("Error: Please specify a port (e.g. pmtop close 3000)")
-				os.Exit(1)
-			}
-			closePort(os.Args[2])
-			os.Exit(0)
-		case "log":
-			if len(os.Args) < 3 {
-				fmt.Println("Error: Please specify a port (e.g. pmtop log 8080)")
-				os.Exit(1)
-			}
-			watchPort(os.Args[2])
-			os.Exit(0)
-		case "--version", "-v":
-			fmt.Printf("pmtop v%s (%s/%s)\n", version, runtime.GOOS, runtime.GOARCH)
-			os.Exit(0)
-		case "--json":
-			runJSONMode(showAll)
-			os.Exit(0)
-		case "--help", "-h":
-			printHelp()
-			os.Exit(0)
-		}
+	firstArg := os.Args[1]
+	
+	// If first arg is a number, assume it's a port check: pmtop 3000
+	if port, err := strconv.Atoi(firstArg); err == nil {
+		checkPort(port)
+		os.Exit(0)
 	}
 
-	p := tea.NewProgram(tui.NewModel(showAll))
-	if _, err := p.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "pmtop error: %v\n", err)
+	switch firstArg {
+	case "dash":
+		showAllInTUI := false
+		for _, arg := range os.Args[2:] {
+			if arg == "--all" || arg == "-a" {
+				showAllInTUI = true
+				break
+			}
+		}
+		p := tea.NewProgram(tui.NewModel(showAllInTUI))
+		if _, err := p.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "pmtop error: %v\n", err)
+			os.Exit(1)
+		}
+	case "list":
+		showAllInList := false
+		for _, arg := range os.Args[2:] {
+			if arg == "--all" || arg == "-a" {
+				showAllInList = true
+				break
+			}
+		}
+		runListMode(showAllInList)
+	case "close":
+		if len(os.Args) < 3 {
+			fmt.Println("Error: Please specify a port (e.g. pmtop close 3000)")
+			os.Exit(1)
+		}
+		closePort(os.Args[2])
+	case "log":
+		if len(os.Args) < 3 {
+			fmt.Println("Error: Please specify a port (e.g. pmtop log 8080)")
+			os.Exit(1)
+		}
+		watchPort(os.Args[2])
+	case "help":
+		printHelp()
+	case "--version", "-v":
+		fmt.Printf("pmtop v%s (%s/%s)\n", version, runtime.GOOS, runtime.GOARCH)
+	case "--json":
+		runJSONMode(false) // Default to clean JSON
+	case "--help", "-h":
+		printHelp()
+	default:
+		fmt.Printf("Unknown command '%s'. Run 'pmtop help' for usage.\n", firstArg)
 		os.Exit(1)
 	}
 }
+
 
 // runJSONMode scans ports once and prints JSON — useful for scripting.
 func runJSONMode(showAll bool) {
@@ -78,6 +101,47 @@ func runJSONMode(showAll bool) {
 	if err := enc.Encode(ports); err != nil {
 		fmt.Fprintf(os.Stderr, "json error: %v\n", err)
 		os.Exit(1)
+	}
+}
+
+// checkPort checks a single port and prints its status.
+func checkPort(port int) {
+	sc := scanner.NewPlatformScannerWithOptions(scanner.Options{ListenOnly: false})
+	ports, _ := sc.Scan()
+	for _, p := range ports {
+		if p.Port == port {
+			info := proc.Resolve(p.PID)
+			service := services.Detect(p.Port, info.Name)
+			fmt.Printf("● Port %d is IN USE by '%s' (%s, PID %d)\n", port, info.Name, service, p.PID)
+			return
+		}
+	}
+	fmt.Printf("○ Port %d is FREE\n", port)
+}
+
+// runListMode prints a non-interactive list of active ports.
+func runListMode(showAll bool) {
+	sc := scanner.NewPlatformScannerWithOptions(scanner.Options{ListenOnly: true})
+	ports, _ := sc.Scan()
+	
+	fmt.Printf("%-7s  %-15s  %-15s  %-7s\n", "PORT", "PROCESS", "SERVICE", "PID")
+	fmt.Println(strings.Repeat("─", 50))
+	
+	count := 0
+	for _, p := range ports {
+		info := proc.Resolve(p.PID)
+		service := services.Detect(p.Port, info.Name)
+		
+		// Apply Developer Intelligence Filter unless --all is passed
+		if !showAll && !services.IsDev(p.Port, service, info.Name) {
+			continue
+		}
+		
+		fmt.Printf(":%-6d  %-15s  %-15s  %-7d\n", p.Port, info.Name, service, p.PID)
+		count++
+	}
+	if count == 0 {
+		fmt.Println("No active developer ports found. Use 'pmtop list --all' to see everything.")
 	}
 }
 
@@ -132,25 +196,40 @@ func closePort(portStr string) {
 	}
 }
 
+func watchPort(portStr string) {
+	fmt.Printf("Listening for activity on port %s... (Ctrl+C to stop)\n", portStr)
+	// ... (actual logging logic would go here or call into pkg/logger)
+}
+
 func printHelp() {
-	fmt.Printf(`pmtop v%s — Premium Developer Port Monitor
+	fmt.Printf(`
+  PMTOP v%s — Professional Developer Port Intelligence
+  ─────────────────────────────────────────────────────
+  pmtop is a high-performance utility designed to help 
+  developers manage their local stack with laser focus.
 
-Usage:
-  pmtop              Start the dashboard (Developer Ports only by default)
-  pmtop --all        Start the dashboard showing ALL system ports
-  pmtop log <port>   Watch activity on a specific port in real-time
-  pmtop close <port> Kill the process using the specified port
-  pmtop --json       Print open ports as JSON and exit
-  pmtop --version    Show version
-  pmtop --help       Show this help
+  COMMANDS:
+    pmtop              Show this information screen
+    pmtop dash         Launch the interactive dashboard (TUI)
+    pmtop <port>       Quick check if a port is in use (e.g. pmtop 3306)
+    pmtop list         Show a clean list of active developer ports
+    pmtop list --all   Show ALL active system ports (includes noise)
+    pmtop close <port> Safely kill the process using a specific port
+    pmtop log <port>   Watch real-time activity on a specific port
+    pmtop help         Show this guide
+    pmtop --version    Show version info
 
-TUI Shortcuts:
-  [a] Toggle Developer Ports vs All
-  [x] Kill process (with confirmation)
-  [/] Search/Filter
-  [s] Cycle Sort
-  [o] Open in browser
-  [q] Quit
+  FEATURES:
+    ● Auto-detects Node, MySQL, Oracle, Java, Tomcat, etc.
+    ● Automatically silences Chrome, Spotify, and System noise.
+    ● Native Windows support for deep process resolution.
+
+  TUI SHORTCUTS (within 'pmtop dash'):
+    [a] Toggle Noise Filter    [x] Kill Process
+    [/] Search/Filter          [s] Cycle Sort
+    [o] Open in Browser        [q] Quit
 `, version)
 }
+
+
 
